@@ -1,0 +1,201 @@
+<template id='subject-page-template'>
+<div class='container'>
+    <div v-if='typeof subjects[subject]=="undefined"'>
+        NO SUCH SUBJECT "{{subject}}"
+    </div>
+    <div v-else-if='loading==true'>
+        <i tt='loading'></i>
+    </div>
+    <div v-else>
+        <h1>{{getSubjectLabel}}</h1>
+        <ul class="list-group">
+            <li v-for='prop in lads' class="list-group-item" style='display:flex;flex-direction:row;'>
+                <div style='width:10rem;display:flex;flex-direction:row;'>
+                    <div :tt='prop'></div>
+                    <div v-if='prop=="labels"' tt_title='mandatory' style='color:red;margin-left:0.2rem;'>*</div>
+                </div>
+                <ul class="list-group" style='display:flex;flex-direction:column;flex-grow:1;'>
+                    <li v-for='(v,num) in data[prop]' :key='v.vue_key' class="list-group-item" style='display:flex;flex-direction:row;'>
+                        <prop-value :original='v' :num='num' :prop='prop' @datachanged='onDataChanged($event)'></prop-value>
+                        <span v-if='num+1==data[prop].length'>
+                            <button class='btn btn-outline-success' @click.prevent='onAddElement(prop)'>+</button>
+                        </span>
+                        <span v-if='data[prop].length>1'>
+                            <button class='btn btn-outline-danger' @click.prevent='onRemoveElement(prop,num)'>-</button>
+                        </span>
+                    </li>
+                </ul>
+            </li>
+        </ul>
+        <ul class='list-group mt-2'>
+            <li v-for='(pv,prop) in s.props' class="list-group-item" style='display:flex;flex-direction:row;'>
+                <div style='width:10rem;display:flex;flex-direction:row;'>
+                    <wd-link :item='prop' :language='tt.language'></wd-link>
+                    <div v-if='pv.mandatory' tt_title='mandatory' style='color:red;margin-left:0.2rem;'>*</div>
+                </div>
+                <ul class="list-group" style='display:flex;flex-direction:column;flex-grow:1;'>
+                    <li v-for='(v,num) in data[prop]' :key='v.vue_key' class="list-group-item" style='display:flex;flex-direction:row;'>
+                        <prop-value :original='v' :num='num' :prop='prop' :pv='pv' @datachanged='onDataChanged($event)'></prop-value>
+                        <span v-if='num+1==data[prop].length'>
+                            <button class='btn btn-outline-success' @click.prevent='onAddElement(prop)'>+</button>
+                        </span>
+                        <span v-if='data[prop].length>1'>
+                            <button class='btn btn-outline-danger' @click.prevent='onRemoveElement(prop,num)'>-</button>
+                        </span>
+                    </li>
+                </ul>
+            </li>
+        </ul>
+        <div v-if='widar.is_logged_in' class='mt-2'>
+            <button v-if='can_create_new_item' class='btn btn-outline-primary' tt='create_new_item' @click.prevent='doCreateItem'></button>
+            <ul v-else class='list-group'>
+                <li v-for='msg in warning_messages' class='list-group-item alert alert-warning'>{{msg}}</li>
+            </ul>
+        </div>
+        <div v-if='created_items.length>0' class='mt-2'>
+            <h3 tt='last_items_created'></h3>
+            <div v-for='q in created_items'>
+                <wd-link :item='q'></wd-link>
+            </div>
+        </div>
+<!--        <div v-if='!widar.is_logged_in' class='mt-2' tt='log_into_widar'></div>-->
+    </div>
+</div>
+</template>
+
+<script>
+'use strict';
+
+let SubjectPage = Vue.extend ( {
+    props : [ 'subject' ] ,
+    data : function () { return { s:{} , data:{} , lads:["labels","aliases","descriptions"] , can_create_new_item:false , creation_data:{} , warning_messages:[] , created_items:[] , vue_key_num:0 , debugging:false , loading:true } } ,
+    created : function () {
+        var me = this ;
+        if ( typeof me.$route.query.debug != 'undefined' ) me.debugging = true ;
+        if ( typeof subjects[me.subject] == "undefined" ) return ;
+        me.data = {} ;
+        $.each ( {labels:0,descriptions:0,aliases:0} , function ( prop , pv ) {
+            me.$set ( me.data , prop , [ { vue_key:(me.vue_key_num++) } ] ) ;
+        } )
+        $.each ( subjects[me.subject].props , function ( prop , pv ) {
+            me.$set ( me.data , prop , [ { vue_key:(me.vue_key_num++) } ] ) ;
+        } )
+        me.s = subjects[me.subject] ;
+        if ( typeof me.q != 'undefined' ) initializeDataFromItem ( me.q ) ;
+
+        // Pre-load items
+        let to_load = [] ;
+        $.each ( me.s.props , function ( prop , pv ) {
+            if ( typeof pv.hardselect != 'undefined' ) to_load = to_load.concat(pv.hardselect.split(',')) ;
+            if ( typeof pv.softselect != 'undefined' ) to_load = to_load.concat(pv.softselect.split(',')) ;
+        } ) ;
+        wd.getItemBatch ( to_load , function () {
+            me.loading = false ;
+        } ) ;
+    } ,
+    updated : function () { tt.updateInterface(this.$el) ; } ,
+    mounted : function () { tt.updateInterface(this.$el) ; } ,
+    methods : {
+        onAddElement : function ( prop ) {
+            var me = this ;
+            me.data[prop].push ( { vue_key:(me.vue_key_num++) } ) ;
+            me.updateEditElement() ;
+        } ,
+        onRemoveElement : function ( prop , num ) {
+            var me = this ;
+//            console.log ( prop , num ) ;
+            me.data[prop].splice ( num , 1 ) ; // Doesn't work correctly??
+            me.updateEditElement() ;
+        } ,
+        onDataChanged : function ( d ) {
+            var me = this ;
+//            console.log ( JSON.parse(JSON.stringify(d)) ) ;
+            me.data[d.prop][d.num] = d ;
+            me.updateEditElement() ;
+        } ,
+        updateEditElement : function () {
+            var me = this ;
+            let data = {} ;
+            me.warning_messages = [] ;
+            me.can_create_new_item = false ;
+            let can_create = false ;
+            let prop_counter = {} ;
+            $.each ( me.data , function ( prop , entries ) {
+                $.each ( entries , function ( num , e ) {
+                    if ( !e.is_valid ) return ;
+                    if ( -1 !== $.inArray ( prop , me.lads ) ) {
+                        if ( typeof data[prop] == 'undefined' ) data[prop] = [] ;
+                        data[prop].push ( e.statement ) ;
+                    } else {
+                        if ( typeof data.claims == 'undefined' ) data.claims = [] ;
+                        if ( typeof prop_counter[prop] == 'undefined' ) prop_counter[prop] = 0 ;
+                        prop_counter[prop]++ ;
+                        data.claims.push ( e.statement ) ;
+                    }
+                    can_create = true ;
+                } ) ;
+            } ) ;
+            $.each ( me.s.props , function ( prop , v ) {
+                if ( !v.mandatory ) return ;
+                if ( typeof prop_counter[prop] == 'undefined' ) {
+                    can_create = false ;
+                    me.warning_messages.push ( 'Property ' + prop + ' is mandatory' ) ;
+                }
+            } ) ;
+            me.creation_data = JSON.parse(JSON.stringify(data)) ;
+            if ( typeof data.labels == 'undefined' ) {
+                can_create = false ;
+                me.warning_messages.push ( "One label is required" ) ;
+            }
+            me.can_create_new_item = can_create ;
+//console.log ( JSON.parse(JSON.stringify(me.creation_data)) ) ;
+//            if ( me.can_create_new_item ) console.log ( data ) ;
+        } ,
+        doCreateItem : function () {
+            var me = this ;
+            if ( !me.can_create_new_item ) return ;
+            me.warning_messages = [ 'Creating item...' ] ;
+            me.can_create_new_item = false ;
+            let command = {
+                action:'wbeditentity',
+                new:'item',
+                data:JSON.stringify(me.creation_data)
+            } ;
+//console.log ( JSON.parse(JSON.stringify(me.creation_data)) ) ;
+            $('#working').show() ;
+            let params = {
+                action:'generic',
+                json:JSON.stringify(command) ,
+                tool_hashtag:'cradle' ,
+                botmode:1
+            } ;
+
+            widar.run ( params , function ( d ) {
+                if ( d.error != 'OK' || typeof d.last_res == 'undefined' ) {
+                    console.log ( JSON.parse(JSON.stringify(me.creation_data)) ) ;
+                    me.warning_messages = [ d.error ] ;
+                    me.can_create_new_item = true ;
+                    return ;
+                }
+                me.warning_messages = [ 'Item created!' ] ;
+                me.created_items.push ( d.last_res.entity.id ) ;
+                me.can_create_new_item = true ;
+//                console.log ( d ) ;
+                $('#working').hide() ;
+            } ) ;
+        } ,
+        initializeDataFromItem : function ( q ) {
+            let me = this ;
+            // TODO
+        } ,
+    } ,
+    computed : {
+        getSubjectLabel : function () {
+            var me = this ;
+            if ( typeof me.s.labels[tt.language] != 'undefined' ) return me.s.labels[tt.language] ;
+            return me.subject.replace(/_/g,' ') ;
+        }
+    } ,
+    template:'#subject-page-template'
+} ) ;
+</script>

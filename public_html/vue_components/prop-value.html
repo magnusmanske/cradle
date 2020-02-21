@@ -1,0 +1,168 @@
+<template id='prop-value-template'>
+<div v-if='ready' style='display:flex;flex-direction:row;align-items:baseline;flex-grow:1'>
+	<div v-if='hardselect.length>0'>
+		<div v-if='p.raw.datatype=="wikibase-item"'>
+			<select v-model='d.statement.mainsnak.datavalue.value.id' @change='setQ(d.statement.mainsnak.datavalue.value.id)' class='custom-select' style='width:auto;'>
+				<option v-for='(q,hsnum) in hardselect' :value='q'>
+					{{getLabel(q)}}
+				</option>
+			</select>
+		</div>
+	</div>
+    <div v-else-if='is_label_type' style='display:flex;flex-direction:row;'>
+        <div>
+            <input type='text' class='form-input' v-model='d.statement.language' style='width:5rem' tt_placeholder='ph_language' @change='onStringChange' />
+        </div>
+        <div>
+            <input type='text' class='form-input' v-model='d.statement.value' style='width:25rem' tt_placeholder='ph_text' @change='onStringChange' />
+        </div>
+    </div>
+	<div v-else>
+		<div v-if='p.raw.datatype=="wikibase-item"'>
+			<typeahead-search :initial_q='d.statement.mainsnak.datavalue.value.id' :language='tt.language' @setq='setQ($event)'></typeahead-search>
+			<select v-if='softselect.length>0' v-model='d.statement.mainsnak.datavalue.value.id' class='custom-select' style='width:auto;max-width:15rem;'>
+				<option v-for='(q,hsnum) in softselect' :value='q'>
+					{{getLabel(q)}}
+				</option>
+			</select>
+		</div>
+		<div v-else>
+			 <value-validator :prop='prop' @setvalue='onSetValue($event)'></value-validator>
+		</div>
+	</div>
+    <div v-else>
+        {{pv}}
+	</div>
+</div>
+</template>
+
+
+<script>
+'use strict';
+
+Vue.component ( 'prop-value' , {
+	props : [ 'original' , 'prop' , 'num' , 'pv' ] ,
+	data : function () { return { d:{} , p:{} , hardselect:[] , softselect:[] , ready:false , is_label_type:false } } ,
+    created : function () {
+    	var me = this ;
+        me.is_label_type = (me.prop=="labels"||me.prop=="aliases"||me.prop=="descriptions") ;
+    	//me.d =  JSON.parse(JSON.stringify(me.original)) ;
+        me.$set ( me , 'd' , JSON.parse(JSON.stringify(me.original)) ) ;
+    	me.d.prop = me.prop ;
+    	me.d.num = me.num ;
+    	me.d.is_changed = false ;
+    	me.d.is_valid = false ;
+		me.p = wd.getItem ( me.prop ) ;
+        if ( typeof me.pv != 'undefined' ) {
+    		if ( typeof me.pv.hardselect != 'undefined' ) me.hardselect = me.pv.hardselect.split(',') ;
+    		if ( typeof me.pv.softselect != 'undefined' ) me.softselect = me.pv.softselect.split(',') ;
+        }
+		if ( typeof me.p == 'undefined' &&  !me.is_label_type ) {
+			console.log ( "No prop in wd: "+me.prop ) ;
+			return ;
+		}
+
+		let to_load = [] ;
+		$.each ( me.hardselect , function ( k , v ) { to_load.push ( v ) } ) ;
+		$.each ( me.softselect , function ( k , v ) { to_load.push ( v ) } ) ;
+		wd.getItemBatch ( to_load , function () {
+	    	if ( typeof me.d.statement == 'undefined' ) me.createStatement() ;
+	    	else me.d.is_valid = true ;
+	    	if ( me.hardselect.length>0 ) me.setQ ( me.hardselect[0] ) ;
+	    	me.ready = true ;
+		} ) ;
+    } ,
+    updated : function () { tt.updateInterface(this.$el) ; } ,
+    mounted : function () { tt.updateInterface(this.$el) ; } ,
+    methods : {
+        onSetValue : function ( params ) {
+            var me = this ;
+            me.d.is_valid = params.is_valid ;
+            if ( params.is_valid ) {
+                //console.log(JSON.parse(JSON.stringify(params.statement)));
+                me.d.statement = params.statement ;
+                me.d.is_changed = true ;
+            }
+            me.$emit('datachanged',me.d) ;
+        } ,
+        onStringChange : function () {
+            var me = this ;
+            me.d.is_changed = true ;
+            if ( me.is_label_type ) {
+                if ( me.d.statement.language != '' && me.d.statement.value != '' ) {
+                    me.d.is_valid = true ;
+                }
+            }
+            me.$emit('datachanged',me.d) ;
+        } ,
+    	getLabel : function ( q ) {
+    		let i = wd.getItem(q) ;
+    		if ( typeof i == 'undefined' ) return q ;
+    		return i.getLabel(tt.language);
+    	} ,
+    	setQ : function ( new_q ) {
+    		var me = this ;
+    		me.d.statement.mainsnak.datavalue.value.id = new_q ;
+    		me.d.statement.mainsnak.datavalue.value['numeric-id'] = new_q.replace(/\D/g,'') ;
+    		me.d.is_changed = true ;
+    		me.d.is_valid = true ;
+    		me.$emit('datachanged',me.d) ;
+    	} ,
+    	createStatement : function () {
+    		var me = this ;
+    		let statement = {} ;
+            if ( me.is_label_type ) {
+                statement = {
+                    language:'',
+                    value:''
+                } ;
+                me.$set ( me.d , 'kind' , 'label' ) ;
+            } else if ( me.p.raw.datatype == "wikibase-item" ) {
+    			statement = {
+    				mainsnak : {
+                        snaktype:'value',
+    					property:me.prop,
+    					datavalue :{
+    						value:{
+    							'entity-type':'item',
+    							'numeric-id':0,
+    							'id':''
+    						} ,
+                            type : 'wikibase-entityid'
+    					}
+    				} ,
+                    type:'statement',
+                    rank:'normal'
+    			} ;
+/*
+            } else if ( me.p.raw.datatype == "monolingualtext" ) {
+                statement = {
+                    mainsnak : {
+                        property:me.prop,
+                        datavalue :{
+                            value:'',
+                            type:'string'
+                        }
+                    }
+                } ;
+*/
+            } else if ( me.p.raw.datatype == "string" ) {
+                statement = {
+                    mainsnak : {
+                        property:me.prop,
+                        datavalue :{
+                            value:'',
+                            type:'string'
+                        }
+                    }
+                } ;
+    		} else {
+//                console.log ( "Don't understand property type '" + me.p.raw.datatype + "' of property " + me.prop ) ;
+            }
+    		me.$set ( me.d , 'statement' , statement ) ;
+    	}
+    } ,
+	template : '#prop-value-template'
+} ) ;
+
+</script>

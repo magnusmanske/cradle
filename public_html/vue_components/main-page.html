@@ -1,0 +1,58 @@
+<template id='main-page-template'>
+<div class='container'>
+    <div class='lead'>
+        <blockquote class="blockquote" style='margin-left:2rem;'>
+            <p class="mb-0" tt='quote'></p>
+            <footer class="blockquote-footer"><cite tt='proverb'></cite></footer>
+        </blockquote>
+        <div>
+            <span tt='main_blurb'></span>
+            <a href='https://www.wikidata.org/wiki/Wikidata:Cradle' class='wikidata' target='_blank' tt='here'></a>
+        </div>
+        <div>
+            <form @submit='goShEx' class="form-inline">
+                <span tt='shex_blurb'></span> &nbsp;
+                <input v-model='shex' tt_placeholder='pl_shex' class='form-control' />
+                <input type='submit' tt_value='go_shex' class='form-control' />
+            </form>
+        </div>
+    </div>
+
+    <ul class='list-group mt-2'>
+        <li v-for='(s,sk) in subjects' class='list-group-item'>
+            <router-link :to='"/subject/"+sk'>
+                <span v-if='typeof s.labels[tt.language]=="undefined"'>
+                    {{sk.replace(/_/g,' ')}}
+                </span>
+                <span v-else>
+                    {{s.labels[tt.language]}}
+                </span>
+            </router-link>
+        </li>
+    </ul>
+</div>
+</template>
+
+<script>
+'use strict';
+
+let MainPage = Vue.extend ( {
+    props : [] ,
+    data : function () { return { shex:'' } } ,
+    created : function () {
+    } ,
+    updated : function () { tt.updateInterface(this.$el) ; } ,
+    mounted : function () { tt.updateInterface(this.$el) ; } ,
+    methods : {
+        goShEx : function () {
+            if ( $.trim(this.shex) == '' ) {
+                alert ( "Form: E##" ) ;
+                return ;
+            }
+            this.$router.push ( '/shex/'+this.shex );
+            return false ;
+        }
+    } ,
+    template:'#main-page-template'
+} ) ;
+</script>
