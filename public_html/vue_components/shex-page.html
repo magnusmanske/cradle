@@ -165,7 +165,7 @@ let ShexPage = Vue.extend ( {
     methods : {
         loadEntitySchema : function ( callback ) {
             let me = this ;
-            $.getJSON ( 'https://www.wikidata.org/w/api.php?callback=?' , {
+            $.getJSON ( config.api+'?callback=?' , {
                 action:'parse',
                 page:"EntitySchema:"+me.e,
                 prop:'wikitext' ,
@@ -259,6 +259,10 @@ let ShexPage = Vue.extend ( {
                 me.warning_messages = [ 'Item created!' ] ;
                 me.created_items.push ( d.last_res.entity.id ) ;
                 me.can_create_new_item = true ;
+
+                // Logging
+                $.getJSON ( 'https://tools.wmflabs.org/magnustools/logger.php?tool=cradle&method=item from shex&callback=?' , function(j){} ) ;
+
 //                console.log ( d ) ;
                 $('#working').hide() ;
             } ) ;

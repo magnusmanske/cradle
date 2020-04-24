@@ -180,6 +180,10 @@ let SubjectPage = Vue.extend ( {
                 me.warning_messages = [ 'Item created!' ] ;
                 me.created_items.push ( d.last_res.entity.id ) ;
                 me.can_create_new_item = true ;
+
+                // Logging
+                $.getJSON ( 'https://tools.wmflabs.org/magnustools/logger.php?tool=cradle&method=item from subject&callback=?' , function(j){} ) ;
+
 //                console.log ( d ) ;
                 $('#working').hide() ;
             } ) ;

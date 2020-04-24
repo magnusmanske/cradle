@@ -5,20 +5,20 @@ let app ;
 let wd = new WikiData() ;
 
 let subjects = {} ;
-let source_page = 'Wikidata:Cradle' ;
 
 $(document).ready ( function () {
 
     function loadSourcePage ( callback ) {
-        $.getJSON ( 'https://www.wikidata.org/w/api.php?callback=?' , {
+        $.getJSON ( config.api+'?callback=?' , {
             action:'parse',
-            page:source_page,
+            page:config.source_page,
             prop:'wikitext' ,
             format:'json'
         } , function ( d ) {
             parseSourceData ( d.parse.wikitext['*'] , callback ) ;
         } )
     } ;
+
     function parseSourceData ( wikitext , callback ) {
         let rows = wikitext.split ( "\n" ) ;
         subjects = {} ;
@@ -68,21 +68,22 @@ $(document).ready ( function () {
             'vue_components/shex-page.html',
             ] )
     ] )
-     .then ( () => {
+    .then ( () => {
 
-        wd_link_wd = wd ;
-
-        loadSourcePage ( function () {
-          const routes = [
-            { path: '/', component: MainPage , props:true },
-            { path: '/subject/:subject', component: SubjectPage , props:true },
-            { path: '/subject/:subject/:q', component: SubjectPage , props:true },
-            { path: '/shex/:e', component: ShexPage , props:true },
-          ] ;
-          router = new VueRouter({routes}) ;
-          app = new Vue ( { router } ) .$mount('#app') ;
+        wd.set_custom_api ( config.api , function () {
+            wd_link_wd = wd ;
+            loadSourcePage ( function () {
+              const routes = [
+                { path: '/', component: MainPage , props:true },
+                { path: '/subject/:subject', component: SubjectPage , props:true },
+                { path: '/subject/:subject/:q', component: SubjectPage , props:true },
+                { path: '/shex/:e', component: ShexPage , props:true },
+              ] ;
+              router = new VueRouter({routes}) ;
+              app = new Vue ( { router } ) .$mount('#app') ;
+              $('#help_page').attr('href',wd.page_path.replace(/\$1/,config.source_page));
+            } ) ;
         } ) ;
-
 
     } ) ;
 } ) ;

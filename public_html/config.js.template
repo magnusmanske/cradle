@@ -1,0 +1,6 @@
+'use strict';
+
+let config = {
+    source_page:'Wikidata:Cradle',
+    api:'https://www.wikidata.org/w/api.php'
+} ;
