@@ -86,14 +86,14 @@ let ShexPage = Vue.extend ( {
             if ( m == null ) return ;
             let start = m[1] ;
             
-            t = t.replace ( /#.*?\n/mg , "\n" ) ;
+            t = t.replace ( /(?<!\<)#.*(\n|$)/mg , "\n" ) ;
             t = t.replace ( /\n/mg , " " ) ;
 
             me.j = j ;
 
             let s = {labels:{} , props:{}} ;
             let to_load = [] ;
-            const regex1 = RegExp('<([^/<>]+)> EXTRA .*?\{(.+?)\}','g'); // THIS DOES NOT DEAL WITH {num} OR {num,num}!!
+            const regex1 = RegExp('<([^/<>]+)>(?: EXTRA .*?)?\w*\{(.+?)\}','gi'); // THIS DOES NOT DEAL WITH {num} OR {num,num}!!
             while ( (m = regex1.exec(t)) !== null ) {
                 if ( m[1] != start ) continue ;
                 let parts = m[2].split(';') ;
