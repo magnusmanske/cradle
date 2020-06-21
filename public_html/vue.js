@@ -69,6 +69,7 @@ $(document).ready ( function () {
             ] )
     ] )
     .then ( () => {
+        widar_api_url = 'https://cradle.toolforge.org/api.php' ;
 
         wd.set_custom_api ( config.api , function () {
             wd_link_wd = wd ;
