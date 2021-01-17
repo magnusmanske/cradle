@@ -1,6 +1,7 @@
 'use strict';
 
 let config = {
-    source_page:'Wikidata:Cradle',
-    api:'https://www.wikidata.org/w/api.php'
+    "source_page":"Wikidata:Cradle",
+    "wikibase_api":"https://www.wikidata.org/w/api.php",
+    "cradle_api":"https://cradle.toolforge.org/api.php"
 } ;
