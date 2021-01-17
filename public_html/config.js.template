@@ -2,6 +2,9 @@
 
 let config = {
     "source_page":"Wikidata:Cradle",
+    "wikibase_url":"https://www.wikidata.org/wiki/",
     "wikibase_api":"https://www.wikidata.org/w/api.php",
+    "oauth_url":"https://www.mediawiki.org/w/index.php?title=Special:OAuth",
+    "cradle_url":"https://cradle.toolforge.org",
     "cradle_api":"https://cradle.toolforge.org/api.php"
 } ;
