@@ -165,7 +165,7 @@ let ShexPage = Vue.extend ( {
     methods : {
         loadEntitySchema : function ( callback ) {
             let me = this ;
-            $.getJSON ( config.api+'?callback=?' , {
+            $.getJSON ( config.wikibase_api+'?callback=?' , {
                 action:'parse',
                 page:"EntitySchema:"+me.e,
                 prop:'wikitext' ,
