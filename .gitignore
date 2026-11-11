@@ -1,1 +1,4 @@
 vendor/
+# Local installation files; never commit secrets (OAuth consumer secret!)
+public_html/config.js
+oauth.ini

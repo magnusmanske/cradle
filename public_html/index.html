@@ -1,15 +1,17 @@
 <!DOCTYPE HTML>
-<html><head>
-<META NAME="ROBOTS" CONTENT="NOINDEX, NOFOLLOW">
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<title tt="toolname"></title>
-<link rel="stylesheet" href="https://tools-static.wmflabs.org/cdnjs/ajax/libs/twitter-bootstrap/4.0.0/css/bootstrap.min.css">
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cradle</title>
+<link rel="stylesheet" href="https://tools-static.wmflabs.org/cdnjs/ajax/libs/twitter-bootstrap/4.6.2/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://tools-static.wmflabs.org/magnustools/resources/html/wikimedia.css">
 <script defer src="config.js"></script>
-<script defer src="https://tools-static.wmflabs.org/cdnjs/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
-<script defer src="https://tools-static.wmflabs.org/cdnjs/ajax/libs/twitter-bootstrap/4.0.0/js/bootstrap.bundle.min.js"></script>
-<script defer src="https://tools-static.wmflabs.org/cdnjs/ajax/libs/vue/2.5.13/vue.min.js"></script>
-<script defer src="https://tools-static.wmflabs.org/cdnjs/ajax/libs/vue-router/3.0.1/vue-router.min.js"></script>
+<script defer src="https://tools-static.wmflabs.org/cdnjs/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script defer src="https://tools-static.wmflabs.org/cdnjs/ajax/libs/twitter-bootstrap/4.6.2/js/bootstrap.bundle.min.js"></script>
+<script defer src="https://tools-static.wmflabs.org/cdnjs/ajax/libs/vue/2.7.16/vue.min.js"></script>
+<script defer src="https://tools-static.wmflabs.org/cdnjs/ajax/libs/vue-router/3.6.5/vue-router.min.js"></script>
 <script defer src="https://tools-static.wmflabs.org/tooltranslate/tt.js"></script>
 <script defer src="https://tools-static.wmflabs.org/magnustools/resources/js/wikidata.js"></script>
 <script defer src="https://tools-static.wmflabs.org/magnustools/resources/vue/shared.js"></script>
@@ -18,30 +20,116 @@
 #working {
 	display:none;
 }
+.cradle-spinner {
+	display:inline-block;
+	width:1.1rem;
+	height:1.1rem;
+	vertical-align:middle;
+	border:2px solid rgba(0,0,0,.15);
+	border-top-color:#36c;
+	border-radius:50%;
+	animation:cradle-spin .8s linear infinite;
+}
+@keyframes cradle-spin {
+	to { transform:rotate(360deg); }
+}
+/* Form rows: a light grid instead of nested bordered list groups */
+.cradle-form-row {
+	display:flex;
+	flex-direction:row;
+	align-items:flex-start;
+	padding:.4rem .6rem;
+	border:none;
+	border-bottom:1px solid #eaecf0;
+}
+.cradle-form-row:last-child {
+	border-bottom:none;
+}
+.cradle-form-prop {
+	flex:0 0 10rem;
+	width:10rem;
+	display:flex;
+	flex-direction:row;
+	align-items:baseline;
+	padding-top:.45rem;
+	overflow-wrap:anywhere;
+}
+.cradle-form-values {
+	flex:1 1 auto;
+	display:flex;
+	flex-direction:column;
+	min-width:0;
+}
+.cradle-form-value {
+	display:flex;
+	flex-direction:row;
+	align-items:baseline;
+	min-width:0;
+	padding:.15rem 0;
+}
+.cradle-form-value > .cradle-value-input {
+	flex:1 1 auto;
+	min-width:0;
+}
+.cradle-required {
+	color:#b32424;
+	margin-left:.2rem;
+}
+.cradle-icon-btn {
+	flex:0 0 auto;
+	width:2.1rem;
+	padding-left:0;
+	padding-right:0;
+	margin-left:.25rem;
+	font-weight:bold;
+	line-height:1.2;
+}
+.cradle-warning {
+	background-color:#fef6e7;
+	border-left:3px solid #fc3;
+	padding:.4rem .6rem;
+	margin-top:.4rem;
+	border-radius:2px;
+}
+.cradle-created a {
+	font-family:monospace;
+}
+@media (max-width:600px) {
+	.cradle-form-row {
+		flex-direction:column;
+	}
+	.cradle-form-prop {
+		flex:none;
+		width:auto;
+		padding-top:0;
+		padding-bottom:.2rem;
+	}
+}
 </style>
 
 </head>
 
 <body>
+	<div id='app-error'></div>
 	<div id='app'>
 		<tool-navbar>
 			<template slot='left'>
 				<li class="nav-item navthing">
-					<a class='btn btn-outline-secondary' target='_blank' href='https://github.com/magnusmanske/cradle' tt='git'></a>
+					<a class='btn btn-outline-secondary' target='_blank' rel='noopener' href='https://github.com/magnusmanske/cradle' tt='git'></a>
 				</li>
 				<li class="nav-item navthing">
-					<a id='help_page' class='btn btn-outline-info' target='_blank' href='#' tt='help'></a>
+					<a id='help_page' class='btn btn-outline-info' target='_blank' rel='noopener' href='#' tt='help'></a>
 				</li>
-				<li class="nav-item navthing" id='working'>
-					<img src='https://upload.wikimedia.org/wikipedia/commons/c/cd/Vector_Loading_fallback.gif' />
+				<li class="nav-item navthing" id='working' role='status' aria-live='polite'>
+					<span class='cradle-spinner'></span>
 				</li>
 			</template>
 			<template slot='right'><widar></widar></template>
 		</tool-navbar>
 		<router-view :key="$route.path"><i tt='loading'></i></router-view>
 	</div>
+	<script defer src="vue_components/form-mixin.js"></script>
+	<script defer src="vue.js"></script>
 </body>
-
-<script defer src="vue.js"></script>
 
 </html>

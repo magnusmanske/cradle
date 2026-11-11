@@ -1,39 +1,29 @@
 <template id='prop-value-template'>
-<div v-if='ready' style='display:flex;flex-direction:row;align-items:baseline;flex-grow:1'>
-	<div v-if='hardselect.length>0'>
-		<div v-if='p.raw.datatype=="wikibase-item"'>
-			<select v-model='d.statement.mainsnak.datavalue.value.id' @change='setQ(d.statement.mainsnak.datavalue.value.id)' class='custom-select' style='width:auto;'>
-				<option v-for='(q,hsnum) in hardselect' :value='q'>
-					{{getLabel(q)}}
-				</option>
-			</select>
-		</div>
-	</div>
-    <div v-else-if='is_label_type' style='display:flex;flex-direction:row;'>
-        <div>
-            <input type='text' class='form-input' v-model='d.statement.language' style='width:5rem' tt_placeholder='ph_language' @change='onStringChange' />
-        </div>
-        <div>
-            <input type='text' class='form-input' v-model='d.statement.value' style='width:25rem' tt_placeholder='ph_text' @change='onStringChange' />
-        </div>
-    </div>
-	<div v-else>
-		<div v-if='p.raw.datatype=="wikibase-item"'>
+<div v-if='!failed' class='cradle-value-input' style='display:flex;flex-direction:row;align-items:baseline;'>
+	<template v-if='ready'>
+		<select v-if='is_item && hardselect.length>0' v-model='d.statement.mainsnak.datavalue.value.id' @change='setQ($event.target.value)' class='custom-select custom-select-sm' style='width:auto;'>
+			<option v-for='q in hardselect' :key='q' :value='q'>
+				{{getLabel(q)}}
+			</option>
+		</select>
+		<template v-else-if='is_label_type'>
+			<input type='text' class='form-control form-control-sm' style='width:5rem' v-model='d.statement.language' tt_placeholder='ph_language' @change='onStringChange' />
+			<input type='text' class='form-control form-control-sm' style='width:25rem' v-model='d.statement.value' tt_placeholder='ph_text' @change='onStringChange' />
+		</template>
+		<template v-else-if='is_item'>
 			<typeahead-search :initial_q='d.statement.mainsnak.datavalue.value.id' :language='tt.language' @setq='setQ($event)'></typeahead-search>
-			<select v-if='softselect.length>0' v-model='d.statement.mainsnak.datavalue.value.id' class='custom-select' style='width:auto;max-width:15rem;'>
-				<option v-for='(q,hsnum) in softselect' :value='q'>
+			<select v-if='softselect.length>0' v-model='d.statement.mainsnak.datavalue.value.id' @change='setQ($event.target.value)' class='custom-select custom-select-sm ml-1' style='width:auto;max-width:15rem;'>
+				<option value=''>&mdash;</option>
+				<option v-for='q in softselect' :key='q' :value='q'>
 					{{getLabel(q)}}
 				</option>
 			</select>
-		</div>
-		<div v-else>
-			 <value-validator :prop='prop' @setvalue='onSetValue($event)'></value-validator>
-		</div>
-	</div>
-    <div v-else>
-        {{pv}}
-	</div>
+		</template>
+		<value-validator v-else :prop='prop' @setvalue='onSetValue($event)'></value-validator>
+	</template>
+	<span v-else class='cradle-spinner'></span>
 </div>
+<div v-else class='text-muted' :title='prop'>{{prop}}</div>
 </template>
 
 
@@ -42,35 +32,49 @@
 
 Vue.component ( 'prop-value' , {
 	props : [ 'original' , 'prop' , 'num' , 'pv' ] ,
-	data : function () { return { d:{} , p:{} , hardselect:[] , softselect:[] , ready:false , is_label_type:false } } ,
+	data : function () { return { d:{} , p:{} , hardselect:[] , softselect:[] , ready:false , ready_timer:'' , failed:false , is_label_type:false } } ,
     created : function () {
     	var me = this ;
         me.is_label_type = (me.prop=="labels"||me.prop=="aliases"||me.prop=="descriptions") ;
-    	//me.d =  JSON.parse(JSON.stringify(me.original)) ;
         me.$set ( me , 'd' , JSON.parse(JSON.stringify(me.original)) ) ;
     	me.d.prop = me.prop ;
     	me.d.num = me.num ;
     	me.d.is_changed = false ;
     	me.d.is_valid = false ;
-		me.p = wd.getItem ( me.prop ) ;
+
+        let p = wd.getItem ( me.prop ) ;
+        me.p = typeof p == 'undefined' ? {} : p ;
+
         if ( typeof me.pv != 'undefined' ) {
-    		if ( typeof me.pv.hardselect != 'undefined' ) me.hardselect = me.pv.hardselect.split(',') ;
-    		if ( typeof me.pv.softselect != 'undefined' ) me.softselect = me.pv.softselect.split(',') ;
+    		if ( typeof me.pv.hardselect != 'undefined' ) me.hardselect = String(me.pv.hardselect).split(',').map ( function ( s ) { return s.trim() ; } ) ;
+    		if ( typeof me.pv.softselect != 'undefined' ) me.softselect = String(me.pv.softselect).split(',').map ( function ( s ) { return s.trim() ; } ) ;
         }
-		if ( typeof me.p == 'undefined' &&  !me.is_label_type ) {
-			console.log ( "No prop in wd: "+me.prop ) ;
+        me.hardselect = $.grep ( me.hardselect , function ( q ) { return /^Q\d+$/.test ( q ) ; } ) ;
+        me.softselect = $.grep ( me.softselect , function ( q ) { return /^Q\d+$/.test ( q ) ; } ) ;
+
+		if ( typeof p == 'undefined' && !me.is_label_type ) {
+			console.log ( "No property data for " + me.prop ) ;
+			me.failed = true ;
 			return ;
 		}
 
-		let to_load = [] ;
-		$.each ( me.hardselect , function ( k , v ) { to_load.push ( v ) } ) ;
-		$.each ( me.softselect , function ( k , v ) { to_load.push ( v ) } ) ;
-		wd.getItemBatch ( to_load , function () {
+		let finish = function () {
+			if ( me.ready ) return ;
 	    	if ( typeof me.d.statement == 'undefined' ) me.createStatement() ;
 	    	else me.d.is_valid = true ;
-	    	if ( me.hardselect.length>0 ) me.setQ ( me.hardselect[0] ) ;
+		if ( me.hardselect.length>0 && me.is_item ) me.setQ ( me.hardselect[0] ) ;
 	    	me.ready = true ;
+		} ;
+
+		// Don't wait forever if the item labels cannot be loaded
+		me.ready_timer = setTimeout ( finish , 10000 ) ;
+		wd.getItemBatch ( me.hardselect.concat ( me.softselect ) , function () {
+			clearTimeout ( me.ready_timer ) ;
+			finish() ;
 		} , 'labels' ) ;
+    } ,
+    beforeDestroy : function () {
+    	clearTimeout ( this.ready_timer ) ;
     } ,
     updated : function () { tt.updateInterface(this.$el) ; } ,
     mounted : function () { tt.updateInterface(this.$el) ; } ,
@@ -79,7 +83,6 @@ Vue.component ( 'prop-value' , {
             var me = this ;
             me.d.is_valid = params.is_valid ;
             if ( params.is_valid ) {
-                //console.log(JSON.parse(JSON.stringify(params.statement)));
                 me.d.statement = params.statement ;
                 me.d.is_changed = true ;
             }
@@ -88,20 +91,24 @@ Vue.component ( 'prop-value' , {
         onStringChange : function () {
             var me = this ;
             me.d.is_changed = true ;
-            if ( me.is_label_type ) {
-                if ( me.d.statement.language != '' && me.d.statement.value != '' ) {
-                    me.d.is_valid = true ;
-                }
-            }
+            me.d.is_valid = ( String(me.d.statement.language).trim() != '' && String(me.d.statement.value).trim() != '' ) ;
             me.$emit('datachanged',me.d) ;
         } ,
     	getLabel : function ( q ) {
     		let i = wd.getItem(q) ;
     		if ( typeof i == 'undefined' ) return q ;
-    		return i.getLabel(tt.language);
+    		return i.getLabel(tt.language) || q ;
     	} ,
     	setQ : function ( new_q ) {
     		var me = this ;
+    		new_q = String(new_q).trim().toUpperCase() ;
+    		if ( typeof me.d.statement == 'undefined' || typeof me.d.statement.mainsnak == 'undefined' ) return ;
+    		if ( ! /^Q\d+$/.test ( new_q ) ) {
+    			me.d.is_changed = true ;
+    			me.d.is_valid = false ;
+    			me.$emit('datachanged',me.d) ;
+    			return ;
+    		}
     		me.d.statement.mainsnak.datavalue.value.id = new_q ;
     		me.d.statement.mainsnak.datavalue.value['numeric-id'] = new_q.replace(/\D/g,'') ;
     		me.d.is_changed = true ;
@@ -117,7 +124,7 @@ Vue.component ( 'prop-value' , {
                     value:''
                 } ;
                 me.$set ( me.d , 'kind' , 'label' ) ;
-            } else if ( me.p.raw.datatype == "wikibase-item" ) {
+            } else if ( me.is_item ) {
     			statement = {
     				mainsnak : {
                         snaktype:'value',
@@ -134,32 +141,28 @@ Vue.component ( 'prop-value' , {
                     type:'statement',
                     rank:'normal'
     			} ;
-/*
-            } else if ( me.p.raw.datatype == "monolingualtext" ) {
+            } else if ( me.p.raw && me.p.raw.datatype == "string" ) {
                 statement = {
-                    mainsnak : {
-                        property:me.prop,
-                        datavalue :{
-                            value:'',
-                            type:'string'
-                        }
-                    }
-                } ;
-*/
-            } else if ( me.p.raw.datatype == "string" ) {
-                statement = {
-                    mainsnak : {
-                        property:me.prop,
-                        datavalue :{
-                            value:'',
-                            type:'string'
-                        }
-                    }
+    				mainsnak : {
+                        snaktype:'value',
+    					property:me.prop,
+    					datavalue :{
+    						value:'',
+    						type:'string'
+    					}
+    				} ,
+                    type:'statement',
+                    rank:'normal'
                 } ;
     		} else {
 //                console.log ( "Don't understand property type '" + me.p.raw.datatype + "' of property " + me.prop ) ;
             }
     		me.$set ( me.d , 'statement' , statement ) ;
+    	}
+    } ,
+    computed : {
+    	is_item : function () {
+    		return typeof this.p.raw != 'undefined' && this.p.raw.datatype == 'wikibase-item' ;
     	}
     } ,
 	template : '#prop-value-template'
