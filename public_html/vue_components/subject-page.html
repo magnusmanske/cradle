@@ -171,18 +171,19 @@ let SubjectPage = Vue.extend ( {
             } ;
 
             widar.run ( params , function ( d ) {
-                if ( d.error != 'OK' || typeof d.last_res == 'undefined' ) {
+                if ( d.error != 'OK' || typeof d.res == 'undefined' || typeof d.res.entity == 'undefined' ) {
                     console.log ( JSON.parse(JSON.stringify(me.creation_data)) ) ;
-                    me.warning_messages = [ d.error ] ;
+                    me.warning_messages = [ d.error || 'Unknown error' ] ;
                     me.can_create_new_item = true ;
+                    $('#working').hide() ;
                     return ;
                 }
                 me.warning_messages = [ 'Item created!' ] ;
-                me.created_items.push ( d.last_res.entity.id ) ;
+                me.created_items.push ( d.res.entity.id ) ;
                 me.can_create_new_item = true ;
 
                 // Logging
-                $.getJSON ( 'https://tools.wmflabs.org/magnustools/logger.php?tool=cradle&method=item from subject&callback=?' , function(j){} ) ;
+                $.getJSON ( 'https://magnustools.toolforge.org/logger/?tool=cradle&method=item%20from%20subject&callback=?' , function(j){} ) ;
 
 //                console.log ( d ) ;
                 $('#working').hide() ;
