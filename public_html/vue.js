@@ -23,7 +23,6 @@ $(document).ready ( function () {
         let rows = wikitext.split ( "\n" ) ;
         subjects = {} ;
         let key = '' ;
-        let to_load = [] ;
         $.each ( rows , function ( dummy , row ) {
             let m = row.match ( /^={2,}\s*(.+?)\s*=+$/ )
             if ( m !== null ) {
@@ -31,12 +30,13 @@ $(document).ready ( function () {
                 subjects[key] = { labels:{} , props:{} }
                 return ;
             }
+            if ( typeof subjects[key] == 'undefined' ) return ;
             if ( (m=row.match(/^:([a-z-]+):(.+?)$/)) !== null ) {
                 subjects[key].labels[m[1]] = m[2] ;
             } else if ( (m=row.match(/^;\s*(.+?)\s*:\s*(.+?)\s*$/)) !== null ) {
-                let prop = m[1] ;
+                let prop = normaliseProp ( m[1] ) ;
+                if ( prop == '' ) return ;
                 let parts = m[2].split ( '|' ) ;
-                to_load.push ( prop ) ;
                 subjects[key].props[prop] = {} ;
                 $.each ( parts , function ( dummy2 , part ) {
                     if ( (m=part.match(/^\s*(.+?)\s*:\s*(.+?)\s*$/)) !== null ) {
@@ -46,15 +46,21 @@ $(document).ready ( function () {
                     }
                 } ) ;
             } else if ( (m=row.match(/^;(.+?)\s*:{0,1}\s*$/)) !== null ) {
-                let prop = m[1] ;
-                to_load.push ( prop ) ;
+                let prop = normaliseProp ( m[1] ) ;
+                if ( prop == '' ) return ;
                 subjects[key].props[prop] = {} ;
             }
         } ) ;
 //        console.log ( subjects ) ;
-        wd.getItemBatch ( to_load , function () {
-            callback() ;
-        } ) ;
+        // Don't block the landing page on loading labels for every property
+        // used anywhere in the source page (hundreds of them). Subject pages
+        // load the properties they actually need.
+        callback() ;
+    } ;
+
+    function normaliseProp ( prop ) {
+        prop = $.trim(prop).toUpperCase() ;
+        return /^P\d+$/.test(prop) ? prop : '' ;
     } ;
 
 

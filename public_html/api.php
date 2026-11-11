@@ -15,16 +15,33 @@ function get_config() {
 }
 
 
-$config = get_config() ;
-$oauth_url = $config->oauth_url ;
-$widar = new Toolforge\Widar ( 'cradle' , $oauth_url ) ;
-$widar->attempt_verification_auto_forward ( $config->cradle_url ) ;
-$widar->authorization_callback = $config->cradle_api ;
+$error = '' ;
+$buffering = false ;
 try {
-	if ( $widar->render_reponse ( true ) ) exit ( 0 ) ;
-} catch ( Exception $e ) {
+	$config = get_config() ;
+	$widar = new Toolforge\Widar ( 'cradle' , $config->oauth_url ) ;
+	$widar->attempt_verification_auto_forward ( $config->cradle_url ) ;
+	$widar->authorization_callback = $config->cradle_api ;
 
+	ob_start () ;
+	$buffering = true ;
+	if ( $widar->render_reponse ( true ) ) {
+		ob_end_flush () ;
+		exit ( 0 ) ;
+	}
+	ob_end_clean () ;
+	$buffering = false ;
+	$error = 'Unknown API action' ;
+} catch ( Throwable $e ) { # Exception or Error
+	if ( $buffering ) ob_end_clean () ;
+	$error = $e->getMessage () ;
 }
-print json_encode ( ['data'=>'ERROR'] ) ;
+
+# Always return an object the client can inspect: widar's checkLogin reads
+# `result.query`, so `result` must be present even when the request failed.
+print json_encode ( [
+	'error' => $error ,
+	'result' => [ 'error' => [ 'code' => 'cradle-api-error' , 'info' => $error ] ] ,
+] ) ;
 
 ?>

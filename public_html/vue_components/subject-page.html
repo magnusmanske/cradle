@@ -83,15 +83,15 @@ let SubjectPage = Vue.extend ( {
         me.s = subjects[me.subject] ;
         if ( typeof me.q != 'undefined' ) initializeDataFromItem ( me.q ) ;
 
-        // Pre-load items
-        let to_load = [] ;
+        // Pre-load the properties (for labels/datatypes) and selectable items
+        let to_load = Object.keys ( me.s.props ) ;
         $.each ( me.s.props , function ( prop , pv ) {
             if ( typeof pv.hardselect != 'undefined' ) to_load = to_load.concat(pv.hardselect.split(',')) ;
             if ( typeof pv.softselect != 'undefined' ) to_load = to_load.concat(pv.softselect.split(',')) ;
         } ) ;
         wd.getItemBatch ( to_load , function () {
             me.loading = false ;
-        } ) ;
+        } , 'labels|datatype' ) ;
     } ,
     updated : function () { tt.updateInterface(this.$el) ; } ,
     mounted : function () { tt.updateInterface(this.$el) ; } ,

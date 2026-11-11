@@ -70,7 +70,7 @@ Vue.component ( 'prop-value' , {
 	    	else me.d.is_valid = true ;
 	    	if ( me.hardselect.length>0 ) me.setQ ( me.hardselect[0] ) ;
 	    	me.ready = true ;
-		} ) ;
+		} , 'labels' ) ;
     } ,
     updated : function () { tt.updateInterface(this.$el) ; } ,
     mounted : function () { tt.updateInterface(this.$el) ; } ,

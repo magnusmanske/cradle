@@ -156,7 +156,7 @@ let ShexPage = Vue.extend ( {
 
             wd.getItemBatch ( to_load , function () {
                 me.loading = false ;
-            } ) ;
+            } , 'labels|datatype' ) ;
         } ) ;
 
     } ,
