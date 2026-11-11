@@ -1,5 +1,5 @@
 {
     "require": {
-        "magnusmanske/toolforge": "^1.0"
+        "magnusmanske/toolforge": "^1.0.8"
     }
 }
