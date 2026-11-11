@@ -14,8 +14,11 @@ function get_config() {
 	}
 	$js = file_get_contents ( $file ) ;
 	$js = str_replace ( "\n" , ' ' , $js ) ;
-	$js = preg_replace ( '|.*?\b(?:let|const|var)\s+config\s*=\s*|s' , '' , $js ) ;
-	$js = preg_replace ( '|\s*;\s*$|' , '' , $js ) ;
+	$js = preg_replace ( '~.*?\b(?:let|const|var)\s+config\s*=\s*~s' , '' , $js ) ;
+	$js = preg_replace ( '~\s*;\s*$~' , '' , $js ) ;
+	if ( !is_string ( $js ) ) {
+		throw new RuntimeException ( 'config.js could not be parsed' ) ;
+	}
 	$config = json_decode ( $js ) ;
 	if ( !is_object ( $config ) ) {
 		throw new RuntimeException ( 'config.js is not valid JSON: ' . json_last_error_msg () ) ;
